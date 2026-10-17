@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f1622"><link rel="manifest" href="scanner.webmanifest">
+<title>اسکنر سهام و ارز</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: market list on one side, the selected coin's verdict + chart + indicator votes on the other; stacks on phones. */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --panel2:#eaeef4; --line:#d5dbe5;
+  --fg:#16202e; --muted:#5d6b80;
+  --buy:#0b8a6a; --sell:#c8324b; --hold:#8a6d1c; --accent:#2b5fd9;
+  --buy-bg:#dff4ec; --sell-bg:#fbe3e7; --hold-bg:#f6edd0;
+  --sans:"Vazirmatn",Tahoma,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",Consolas,"Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1622; --panel:#172131; --panel2:#1f2b3f; --line:#2c3a52;
+    --fg:#e6ecf5; --muted:#93a2b8;
+    --buy:#35c79c; --sell:#f0687f; --hold:#e0b84c; --accent:#7aa5ff;
+    --buy-bg:#12382f; --sell-bg:#44202a; --hold-bg:#3d3418;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.7}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;justify-content:space-between}
+h1{font-size:22px;font-weight:800;margin:0;text-wrap:balance}
+h2{font-size:15px;font-weight:700;margin:0}
+.sub{color:var(--muted);font-size:12.5px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;color:var(--muted);font:inherit;padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:700}
+button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--fg);font:inherit;border-radius:8px;padding:6px 14px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+input[type=text]{border:1px solid var(--line);background:var(--panel);color:var(--fg);font:inherit;border-radius:8px;padding:6px 10px;width:130px}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;color:var(--muted);font-weight:500;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+#market tbody tr{cursor:pointer}
+#market tbody tr:hover{background:var(--panel2)}
+#market tbody tr.sel{background:var(--panel2);box-shadow:inset -3px 0 0 var(--accent)}
+.sym{font-weight:700;font-family:var(--mono)}
+.pill{display:inline-block;border-radius:999px;padding:1px 12px;font-weight:700;font-size:12.5px}
+.pill.buy{background:var(--buy-bg);color:var(--buy)}
+.pill.sell{background:var(--sell-bg);color:var(--sell)}
+.pill.hold{background:var(--hold-bg);color:var(--hold)}
+.up{color:var(--buy)} .down{color:var(--sell)} .flat{color:var(--muted)}
+.pill.strong{background:var(--buy);color:var(--panel)}
+.pill.idle{background:var(--panel2);color:var(--muted)}
+.ok{color:var(--buy);font-weight:700} .no{color:var(--sell);font-weight:700}
+.stage td{background:var(--panel2);font-weight:700}
+a{color:var(--accent)}
+.pill.wait{background:var(--panel2);color:var(--muted)}
+.mini{font-size:12px;color:var(--muted);white-space:normal;line-height:1.5;margin-top:2px}
+tr.best td{background:var(--buy-bg)}
+.progress{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+select{border:1px solid var(--line);background:var(--panel);color:var(--fg);font:inherit;border-radius:8px;padding:6px 10px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+nav.apps{display:flex;gap:14px;font-size:12.5px}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
+.x:hover{color:var(--sell)}
+.detail{display:flex;flex-direction:column;gap:16px;min-width:0}
+.verdict{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center}
+.verdict .big{font-size:30px;font-weight:800;line-height:1.2}
+.verdict .price{font-size:22px;font-weight:600}
+.gauge{flex:1 1 240px;min-width:200px}
+.bar{position:relative;height:10px;border-radius:5px;background:linear-gradient(to right,var(--sell),var(--hold) 50%,var(--buy));direction:ltr}
+.bar i{position:absolute;top:-5px;width:4px;height:20px;border-radius:2px;background:var(--fg);transform:translateX(-50%)}
+.gl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);direction:ltr;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px}
+.stat{background:var(--panel2);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font-size:15px}
+.stat span{font-size:12px;color:var(--muted)}
+canvas{width:100%;height:560px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-inline-end:5px}
+.note{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.err{background:var(--sell-bg);color:var(--sell);border-radius:8px;padding:10px 14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>اسکنر سهام و ارز</h1>
+      <div class="sub">پیدا کردن سهام و ارزهایی که الان موقعیت خرید دارند و هنوز بالا نرفته‌اند؛ بر پایهٔ ۸ استراتژی آزموده‌شده روی آن‌ها هم‌نظرند</div>
+      <nav class="apps"><a href="./">سیگنال‌یاب کلی</a><a href="dip.html">شکار کف</a><a href="strategy.html">استراتژی آزموده (ارز)</a></nav>
+    </div>
+    <div class="controls">
+      <select id="uni" aria-label="فهرست سهام"><option value="big">۱۰۰ سهم بزرگ آمریکا</option><option value="growth">۴۰ سهم فناوری و رشد</option><option value="etf">۲۰ صندوق ETF اصلی</option><option value="custom">سهام دلخواه</option><option value="crypto">۴۰ ارز دیجیتال اصلی</option><option value="ccustom">ارزهای دلخواه</option></select>
+      <input type="text" id="custom" placeholder="مثلاً AAPL, TSLA, AMD" aria-label="نمادهای دلخواه" hidden style="width:200px">
+      <div class="seg" id="tf" role="group" aria-label="تایم‌فریم"><button data-tf="1d">روزانه</button><button data-tf="1w">هفتگی</button><button data-tf="1h">۱ ساعت</button></div>
+      <button class="btn" id="scanBtn" type="button">شروع اسکن</button>
+    </div>
+  </header>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="sub"><span id="status">آماده</span> · <b id="summary"></b></div>
+  <div id="error" class="err" hidden></div>
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head"><h2>نتیجهٔ اسکن</h2><label class="chk"><input type="checkbox" id="onlyStrong" checked> فقط موقعیت‌های خرید</label></div>
+      <div class="scroll"><table id="market">
+        <thead><tr><th>#</th><th>نماد</th><th>قیمت (دلار)</th><th>ورود تازه</th><th>فاصله از EMA20 (ATR)</th><th>RSI</th><th>وضعیت</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+    <div class="detail">
+      <section class="panel">
+        <div class="verdict">
+          <div><div class="sub" id="dSym">—</div><div class="big" id="dSig">—</div><div class="sub" id="dWhy"></div></div>
+          <div><div class="sub">آخرین قیمت</div><div class="price num" id="dPrice">—</div></div>
+        </div>
+        <div class="stats" id="stats"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>شرایط «موقعیت خرید»</h2><span class="sub">هر ۶ شرط باید برقرار باشد. اگر دو استراتژی یا بیشتر هم‌زمان ورود بدهند، «عالی» می‌شود.</span></div>
+        <div class="scroll"><table id="checks"><thead><tr><th>شرط</th><th>مقدار</th><th>وضعیت</th></tr></thead><tbody></tbody></table></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>رأی استراتژی‌ها</h2><span class="sub">وزن «کامل»: در آموزش و آزمون سودده · «نصف»: فقط در کل دوره سودده</span></div>
+        <div class="scroll"><table id="votes"><thead><tr><th>استراتژی</th><th>رأی</th><th>وضعیت فعلی</th><th>بازدهی آزمون</th><th>وزن</th></tr></thead><tbody></tbody></table></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>نمودار قیمت، MACD و RSI</h2>
+          <div class="legend"><span><i style="background:var(--accent)"></i>EMA 20 / خط MACD</span><span><i style="background:var(--hold)"></i>EMA 50 / خط سیگنال</span><span><i style="background:var(--buy)"></i>▲ ورود بهترین استراتژی</span><span><i style="background:var(--sell)"></i>▼ خروج</span></div>
+        </div>
+        <canvas id="chart"></canvas>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>کارنامهٔ استراتژی‌ها</h2><span class="sub" id="period"></span></div>
+        <div class="scroll"><table id="cmp"><thead><tr><th>استراتژی</th><th>بازدهی آموزش</th><th>بازدهی آزمون</th><th>درصد برد</th><th>معاملات</th><th>نسبت سود به زیان</th><th>بیشترین افت</th></tr></thead><tbody></tbody></table></div>
+        <p class="mini">هر استراتژی روی ۶۰٪ اول دادهٔ همین نماد آموزش و روی ۴۰٪ آخر که ندیده آزمون می‌شود. هزینهٔ هر خرید و فروش ۰٫۰۵٪ برای سهام و ۰٫۴٪ برای ارز (کارمزد Kraken) حساب شده است. ورود و خروج در قیمت باز شدن کندل بعد از سیگنال انجام می‌شود، پس اگر قیمت با گپ باز شود همان در نتیجه می‌آید.</p>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>معاملات اخیر بهترین استراتژی</h2></div>
+        <div class="scroll"><table id="trades"><thead><tr><th>ورود</th><th>قیمت ورود</th><th>خروج</th><th>قیمت خروج</th><th>نتیجه</th><th>دلیل خروج</th></tr></thead><tbody></tbody></table></div>
+      </section>
+    </div>
+  </div>
+  <p class="note">این ابزار توصیهٔ مالی نیست. «موقعیت خرید» یعنی استراتژی‌ای که در گذشتهٔ همین نماد کار کرده همین الان سیگنال ورود داده و قیمت هنوز از نقطهٔ ورود دور نشده؛ یعنی شانس بهتر، نه تضمین. بخش زیادی از این موقعیت‌ها به حد ضرر می‌خورند. همهٔ استراتژی‌ها از همان قیمت‌های گذشته ساخته شده‌اند و ممکن است با هم اشتباه کنند. خبرها، گزارش‌های سود فصلی و وضعیت کل بازار در نظر گرفته نمی‌شوند؛ قبل از خرید تاریخ گزارش سود شرکت را چک کنید و حد ضرر بگذارید. دادهٔ سهام از Yahoo Finance و دادهٔ ارزها از Kraken می‌آید و ممکن است چند دقیقه تأخیر داشته باشد. ارزهای کوچک (مثل PEPE، WIF، BONK) نوسان بسیار زیادی دارند و ریسکشان خیلی بیشتر است.</p>
+</div>
+<script>
+/*__CORE_START__*/
+function sma(a,n){const r=Array(a.length).fill(null);let s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=n)s-=a[i-n];if(i>=n-1)r[i]=s/n}return r}
+function ema(a,n){const r=Array(a.length).fill(null);if(a.length<n)return r;let e=0;for(let i=0;i<n;i++)e+=a[i];e/=n;r[n-1]=e;const k=2/(n+1);for(let i=n;i<a.length;i++){e=a[i]*k+e*(1-k);r[i]=e}return r}
+function rsi(c,n=14){if(c.length<=n)return null;let g=0,l=0;for(let i=1;i<=n;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}g/=n;l/=n;for(let i=n+1;i<c.length;i++){const d=c[i]-c[i-1];g=(g*(n-1)+Math.max(d,0))/n;l=(l*(n-1)+Math.max(-d,0))/n}return l===0?100:100-100/(1+g/l)}
+function macd(c){const e12=ema(c,12),e26=ema(c,26);const m=[];for(let i=0;i<c.length;i++)if(e26[i]!=null)m.push(e12[i]-e26[i]);const s=ema(m,9);const L=m.length-1;if(L<1||s[L-1]==null)return null;return{macd:m[L],signal:s[L],hist:m[L]-s[L],prev:m[L-1]-s[L-1]}}
+function stoch(h,l,c,n=14){const ks=[];for(let i=c.length-3;i<c.length;i++){if(i<n-1)return null;let hh=-Infinity,ll=Infinity;for(let j=i-n+1;j<=i;j++){hh=Math.max(hh,h[j]);ll=Math.min(ll,l[j])}ks.push(hh===ll?50:100*(c[i]-ll)/(hh-ll))}return{k:ks[2],d:(ks[0]+ks[1]+ks[2])/3}}
+function boll(c,n=20,m=2){const mid=sma(c,n),up=[],lo=[];for(let i=0;i<c.length;i++){if(mid[i]==null){up.push(null);lo.push(null);continue}let v=0;for(let j=i-n+1;j<=i;j++)v+=(c[j]-mid[i])**2;const sd=Math.sqrt(v/n);up.push(mid[i]+m*sd);lo.push(mid[i]-m*sd)}return{mid,up,lo}}
+function adx(h,l,c,n=14){const len=c.length;if(len<2*n+1)return null;const tr=[],pd=[],md=[];for(let i=1;i<len;i++){tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));const u=h[i]-h[i-1],d=l[i-1]-l[i];pd.push(u>d&&u>0?u:0);md.push(d>u&&d>0?d:0)}
+  let st=0,sp=0,sm=0;for(let i=0;i<n;i++){st+=tr[i];sp+=pd[i];sm+=md[i]}const dx=[];let pdi=0,mdi=0;
+  for(let i=n-1;i<tr.length;i++){if(i>=n){st=st-st/n+tr[i];sp=sp-sp/n+pd[i];sm=sm-sm/n+md[i]}pdi=st?100*sp/st:0;mdi=st?100*sm/st:0;dx.push(pdi+mdi?100*Math.abs(pdi-mdi)/(pdi+mdi):0)}
+  let a=0;for(let i=0;i<n;i++)a+=dx[i];a/=n;for(let i=n;i<dx.length;i++)a=(a*(n-1)+dx[i])/n;return{adx:a,pdi,mdi,atr:st/n}}
+function cci(h,l,c,n=20){if(c.length<n)return null;const tp=[];for(let i=c.length-n;i<c.length;i++)tp.push((h[i]+l[i]+c[i])/3);const m=tp.reduce((x,y)=>x+y,0)/n;const md=tp.reduce((x,y)=>x+Math.abs(y-m),0)/n;return md?(tp[n-1]-m)/(0.015*md):0}
+function willr(h,l,c,n=14){if(c.length<n)return null;const hh=Math.max(...h.slice(-n)),ll=Math.min(...l.slice(-n));return hh===ll?-50:-100*(hh-c[c.length-1])/(hh-ll)}
+function mfi(h,l,c,v,n=14){if(c.length<=n)return null;let p=0,q=0;for(let i=c.length-n;i<c.length;i++){const t=(h[i]+l[i]+c[i])/3,t0=(h[i-1]+l[i-1]+c[i-1])/3;if(t>t0)p+=t*v[i];else if(t<t0)q+=t*v[i]}return q===0?100:100-100/(1+p/q)}
+function obvArr(c,v){const r=[0];for(let i=1;i<c.length;i++)r.push(r[i-1]+(c[i]>c[i-1]?v[i]:c[i]<c[i-1]?-v[i]:0));return r}
+function vwap(h,l,c,v,n=50){let pv=0,vv=0;for(let i=Math.max(0,c.length-n);i<c.length;i++){pv+=(h[i]+l[i]+c[i])/3*v[i];vv+=v[i]}return vv?pv/vv:null}
+function patterns(o,h,l,c){const i=c.length-1,out=[];if(i<6)return out;
+  const B=k=>Math.abs(c[k]-o[k]),R=k=>h[k]-l[k]||1e-12,G=k=>c[k]>o[k],Rd=k=>c[k]<o[k];
+  const up=h[i]-Math.max(o[i],c[i]),lo=Math.min(o[i],c[i])-l[i],b=B(i);
+  const downTrend=c[i-1]<c[i-6],upTrend=c[i-1]>c[i-6];
+  if(b<=0.1*R(i))out.push(['دوجی (بلاتکلیفی)',0]);
+  else{
+    if(lo>=2*b&&up<=0.5*b&&downTrend)out.push(['چکش (بازگشت صعودی)',1]);
+    if(up>=2*b&&lo<=0.5*b&&upTrend)out.push(['ستارهٔ ثاقب (بازگشت نزولی)',-1]);
+  }
+  if(Rd(i-1)&&G(i)&&o[i]<=c[i-1]&&c[i]>=o[i-1]&&b>B(i-1))out.push(['پوشای صعودی',1]);
+  if(G(i-1)&&Rd(i)&&o[i]>=c[i-1]&&c[i]<=o[i-1]&&b>B(i-1))out.push(['پوشای نزولی',-1]);
+  if(G(i)&&G(i-1)&&G(i-2)&&c[i]>c[i-1]&&c[i-1]>c[i-2]&&B(i)>0.5*R(i)&&B(i-1)>0.5*R(i-1)&&B(i-2)>0.5*R(i-2))out.push(['سه سرباز سفید',1]);
+  if(Rd(i)&&Rd(i-1)&&Rd(i-2)&&c[i]<c[i-1]&&c[i-1]<c[i-2]&&B(i)>0.5*R(i)&&B(i-1)>0.5*R(i-1)&&B(i-2)>0.5*R(i-2))out.push(['سه کلاغ سیاه',-1]);
+  if(Rd(i-2)&&B(i-2)>0.5*R(i-2)&&B(i-1)<0.3*B(i-2)&&G(i)&&c[i]>(o[i-2]+c[i-2])/2)out.push(['ستارهٔ صبحگاهی',1]);
+  if(G(i-2)&&B(i-2)>0.5*R(i-2)&&B(i-1)<0.3*B(i-2)&&Rd(i)&&c[i]<(o[i-2]+c[i-2])/2)out.push(['ستارهٔ شامگاهی',-1]);
+  return out}
+function fmt(p){if(p==null||!isFinite(p))return'—';const a=Math.abs(p);if(a>=1000)return p.toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:2});if(a>=1)return p.toFixed(a>=100?2:3);if(a>=0.01)return p.toFixed(5);return p.toPrecision(4)}
+function f1(x){return x==null?'—':x.toFixed(1)}
+
+let THR={'1h':3,'1d':8,'1w':15}; // set per scan: stocks swing less than crypto
+function rsiArr(c,n=14){const r=Array(c.length).fill(null);if(c.length<=n)return r;let g=0,l=0;for(let i=1;i<=n;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}g/=n;l/=n;r[n]=l===0?100:100-100/(1+g/l);for(let i=n+1;i<c.length;i++){const d=c[i]-c[i-1];g=(g*(n-1)+Math.max(d,0))/n;l=(l*(n-1)+Math.max(-d,0))/n;r[i]=l===0?100:100-100/(1+g/l)}return r}
+function histArr(c){const e12=ema(c,12),e26=ema(c,26),m=[],idx=[];for(let i=0;i<c.length;i++)if(e26[i]!=null){m.push(e12[i]-e26[i]);idx.push(i)}const s=ema(m,9),r=Array(c.length).fill(null);for(let j=0;j<m.length;j++)if(s[j]!=null)r[idx[j]]=m[j]-s[j];return r}
+// Buy-the-dip detector on closed candles: A) a real drop happened, B) the drop stopped, C) a reversal is confirmed.
+function dip(k,tfKey){
+  tfKey=tfKey||tf;
+  const o=k.map(x=>x.o),h=k.map(x=>x.h),l=k.map(x=>x.l),c=k.map(x=>x.c),v=k.map(x=>x.v),n=c.length,P=c[n-1],thr=THR[tfKey];
+  const R=rsiArr(c),H=histArr(c),bb=boll(c),e20a=ema(c,20),e50a=ema(c,50);
+  let trs=0;for(let i=n-14;i<n;i++)trs+=Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1]));const atr=trs/14;
+  let hiIdx=n-40;for(let i=n-40;i<n;i++)if(h[i]>=h[hiIdx])hiIdx=i;
+  const base={e20a,e50a,bb,rsi:R[n-1],atr,thr,P};
+  if(hiIdx>=n-1)return{...base,state:'none',rank:4,hi:h[hiIdx],low:null,dropPct:0,rec:null,checks:[],show:false,reason:'قیمت در سقف ۴۰ کندل اخیر است'};
+  let lowIdx=hiIdx+1;for(let i=hiIdx+1;i<n;i++)if(l[i]<=l[lowIdx])lowIdx=i;
+  const hi=h[hiIdx],low=l[lowIdx],dropPct=(hi-low)/hi*100,since=n-1-lowIdx,rec=hi>low?(P-low)/(hi-low):0;
+  let minR=100,touched=false;for(let i=hiIdx;i<n;i++){if(R[i]!=null)minR=Math.min(minR,R[i]);if(bb.lo[i]!=null&&l[i]<bb.lo[i])touched=true}
+  let minR12=100;for(let i=Math.max(n-12,lowIdx-2);i<n;i++)if(R[i]!=null)minR12=Math.min(minR12,R[i]);
+  const va=sma(v,20)[n-1]||0,vr=va?v[n-1]/va:0,green=c[n-1]>o[n-1];
+  const pats=patterns(o,h,l,c).filter(x=>x[1]>0).map(x=>x[0]);
+  const A1=dropPct>=thr,A2=minR<30||touched,A3=since<=12,A=A1&&A2&&A3;
+  const B1=since>=1&&P>low,B2=R[n-1]>R[n-2]&&R[n-1]>=minR12+3,B3=H[n-1]!=null&&H[n-1]>H[n-2],B4=c[n-1]>c[n-2],B=B1&&(B2+B3+B4>=2);
+  const C1=pats.length>0,C2=green&&vr>=1.2,C3=c[n-1]>h[n-2],C=C1||C2||C3;
+  const checks=[
+    {stage:'۱) افت واقعی رخ داده',ok:A},
+    {name:'افت از سقف تا کف',val:dropPct.toFixed(1)+'%',desc:'حداقل '+thr+'% در این تایم‌فریم',ok:A1},
+    {name:'اشباع فروش در طول افت',val:'RSI '+f1(minR),desc:'RSI زیر ۳۰ رفته یا قیمت از باند پایین بولینگر گذشته',ok:A2},
+    {name:'کف تازه است',val:since+' کندل پیش',desc:'کف در ۱۲ کندل اخیر ساخته شده',ok:A3},
+    {stage:'۲) افت متوقف شده (کف‌نزدن + دست‌کم ۲ نشانه)',ok:B},
+    {name:'کف تازه‌ای زده نشده',val:fmt(low),desc:'آخرین کندل بسته‌شده کف جدید نساخته',ok:B1},
+    {name:'RSI رو به بالا',val:f1(R[n-1]),desc:'دست‌کم ۳ واحد بالاتر از کمترین مقدار اخیر',ok:B2},
+    {name:'هیستوگرام MACD رو به بالا',val:fmt(H[n-1]),desc:'فشار فروش در حال کم‌شدن',ok:B3},
+    {name:'بسته‌شدن بالاتر از کندل قبل',val:fmt(P),desc:'قیمت پایانی از کندل قبلی بیشتر است',ok:B4},
+    {stage:'۳) تأیید برگشت (یکی: قوی · دو تا همراه با حجم بالا: خیلی قوی)',ok:C},
+    {name:'کندل برگشتی صعودی',val:'—',desc:pats.length?pats.join('، '):'الگویی دیده نشد',ok:C1},
+    {name:'کندل سبز با حجم بالا',val:vr.toFixed(2)+'×',desc:'حجم دست‌کم ۱٫۲ برابر میانگین ۲۰ کندل',ok:C2},
+    {name:'شکستن سقف کندل قبل',val:fmt(h[n-2]),desc:'بسته‌شدن بالای سقف کندل قبلی',ok:C3}
+  ];
+  let state,reason;
+  if(!A){state='none';reason=!A1?'افت به اندازهٔ کافی نیست':!A2?'افت بوده ولی به اشباع فروش نرسیده':'کف قدیمی است و برگشت تازه‌ای در کار نیست'}
+  else if(rec>0.5){state='late';reason='بیش از نیمی از افت جبران شده است'}
+  else if(!B){state='falling';reason='هنوز نشانهٔ توقف ریزش دیده نمی‌شود'}
+  else if(!C){state='watch';reason='ریزش ایستاده ولی برگشت تأیید نشده است'}
+  else if(C1+C2+C3>=2&&C2){state='buy2';reason='هر سه مرحله برقرار است، با دست‌کم دو نشانهٔ تأیید و حجم بالا'}
+  else{state='buy';reason='هر سه مرحله برقرار است، با یک نشانهٔ تأیید یا بدون حجم بالا'}
+  const stop=low-0.5*atr,t1=low+0.5*(hi-low),t2=hi,rr=P>stop?(t1-P)/(P-stop):null;
+  return{...base,state,reason,rank:{buy2:0,buy:1,watch:2,falling:3,late:4,none:5}[state],hi,low,dropPct,nowDrop:(hi-P)/hi*100,rec,since,checks,stop,t1,t2,rr,show:state==='buy2'||state==='buy'||state==='watch'}
+}
+const LABEL={buy2:['خرید خیلی قوی','buy strong'],buy:['خرید قوی','buy'],watch:['منتظر تأیید','hold'],falling:['در حال ریزش','sell'],late:['برگشته، دیر است','idle'],none:['بدون افت','idle']};
+
+let FEE=0.0005; // set per scan: 0.05% for US stocks (no commission, slippage only), 0.4% for crypto (Kraken taker)
+function atrArr(h,l,c,n=14){const r=Array(c.length).fill(null);if(c.length<=n)return r;let s=0;const T=i=>Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1]));for(let i=1;i<=n;i++)s+=T(i);let a=s/n;r[n]=a;for(let i=n+1;i<c.length;i++){a=(a*(n-1)+T(i))/n;r[i]=a}return r}
+function adxArr(h,l,c,n=14){const len=c.length,A=Array(len).fill(null);if(len<2*n+2)return A;let st=0,sp=0,sm=0,adx=null;const dxs=[];
+  for(let i=1;i<len;i++){const tr=Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])),u=h[i]-h[i-1],d=l[i-1]-l[i],pd=u>d&&u>0?u:0,md=d>u&&d>0?d:0;
+    if(i<=n){st+=tr;sp+=pd;sm+=md;if(i<n)continue}else{st=st-st/n+tr;sp=sp-sp/n+pd;sm=sm-sm/n+md}
+    const P=st?100*sp/st:0,M=st?100*sm/st:0,dx=P+M?100*Math.abs(P-M)/(P+M):0;
+    if(adx==null){dxs.push(dx);if(dxs.length===n){adx=dxs.reduce((a,b)=>a+b,0)/n;A[i]=adx}}else{adx=(adx*(n-1)+dx)/n;A[i]=adx}}
+  return A}
+function macdArrs(c){const e12=ema(c,12),e26=ema(c,26),L=c.length,m=Array(L).fill(null),s=Array(L).fill(null),h=Array(L).fill(null),mm=[],idx=[];
+  for(let i=0;i<L;i++)if(e26[i]!=null){m[i]=e12[i]-e26[i];mm.push(m[i]);idx.push(i)}const ss=ema(mm,9);for(let j=0;j<mm.length;j++)if(ss[j]!=null){s[idx[j]]=ss[j];h[idx[j]]=mm[j]-ss[j]}return{m,s,h}}
+function hhv(a,n,i){let x=-Infinity;for(let j=Math.max(0,i-n+1);j<=i;j++)x=Math.max(x,a[j]);return x}
+function llv(a,n,i){let x=Infinity;for(let j=Math.max(0,i-n+1);j<=i;j++)x=Math.min(x,a[j]);return x}
+function superTrend(h,l,c,atr,m=3){const n=c.length,line=Array(n).fill(null),dir=Array(n).fill(null);let fu=null,fl=null,d=1;
+  for(let i=1;i<n;i++){if(atr[i]==null)continue;const mid=(h[i]+l[i])/2,bu=mid+m*atr[i],bl=mid-m*atr[i];
+    if(fu==null){fu=bu;fl=bl;d=c[i]>=mid?1:-1}else{fu=(bu<fu||c[i-1]>fu)?bu:fu;fl=(bl>fl||c[i-1]<fl)?bl:fl;if(d===1&&c[i]<fl)d=-1;else if(d===-1&&c[i]>fu)d=1}
+    dir[i]=d;line[i]=d===1?fl:fu}
+  return{line,dir}}
+function ichi(h,l,c){const n=c.length,mid=(p,i)=>i>=p-1?(hhv(h,p,i)+llv(l,p,i))/2:null,ten=[],kij=[],top=Array(n).fill(null),bot=Array(n).fill(null);
+  for(let i=0;i<n;i++){ten[i]=mid(9,i);kij[i]=mid(26,i)}
+  for(let i=26;i<n;i++){const j=i-26,sb=mid(52,j);if(ten[j]==null||kij[j]==null||sb==null)continue;const sa=(ten[j]+kij[j])/2;top[i]=Math.max(sa,sb);bot[i]=Math.min(sa,sb)}
+  return{ten,kij,top,bot}}
+function prep(k){
+  const g=f=>k.map(f),o=g(x=>x.o),h=g(x=>x.h),l=g(x=>x.l),c=g(x=>x.c),t=g(x=>x.t),n=c.length,M=macdArrs(c);
+  const X={k,o,h,l,c,t,n,e20:ema(c,20),e50:ema(c,50),e100:ema(c,100),s100:sma(c,100),atr:atrArr(h,l,c),adx:adxArr(h,l,c),rsi:rsiArr(c),mm:M.m,ms:M.s,mh:M.h};
+  X.s50=sma(c,50);X.s200=sma(c,200);const ST=superTrend(h,l,c,atrArr(h,l,c,10));X.stl=ST.line;X.std=ST.dir;const I=ichi(h,l,c);X.ten=I.ten;X.kij=I.kij;X.ctop=I.top;X.cbot=I.bot;
+  X.ready=c.map((_,i)=>i>0&&X.s100[i]!=null&&X.e100[i]!=null&&X.adx[i]!=null&&X.atr[i]!=null&&X.mh[i]!=null&&X.mh[i-1]!=null&&X.rsi[i]!=null);
+  X.dipState=Array(n).fill(null);X.dipStop=Array(n).fill(null);X.dipT1=Array(n).fill(null);
+  for(let i=0;i<n;i++){if(!X.ready[i])continue;const d=dip(k.slice(Math.max(0,i-150),i+1),tf);X.dipState[i]=d.state;if(d.show){X.dipStop[i]=d.stop;X.dipT1[i]=d.t1}}
+  return X}
+const STRATS=[
+  {id:'trend',name:'دنبال‌کردن روند',desc:'ورود: EMA20 از بالای EMA50 رد شود و ADX بالای ۲۰ باشد. خروج: EMA20 زیر EMA50 برود یا حد ضرر متحرک ۳ ATR زیر بالاترین قیمت.',
+    entry:(X,i)=>X.e20[i-1]<=X.e50[i-1]&&X.e20[i]>X.e50[i]&&X.adx[i]>20,exit:(X,i)=>X.e20[i]<X.e50[i],stop:2.5,trail:3,bear:(X,i)=>X.e20[i]<X.e50[i]},
+  {id:'breakout',name:'شکست سقف (دانچیان)',desc:'ورود: بسته‌شدن بالای سقف ۲۰ کندل قبل، وقتی قیمت بالای SMA100 است. خروج: بسته‌شدن زیر کف ۱۰ کندل قبل.',
+    entry:(X,i)=>X.c[i]>hhv(X.h,20,i-1)&&X.c[i]>X.s100[i],exit:(X,i)=>X.c[i]<llv(X.l,10,i-1),stop:2.5,bear:(X,i)=>X.c[i]<X.s100[i]},
+  {id:'macd',name:'مومنتوم MACD',desc:'ورود: MACD از خط سیگنال بالا برود، وقتی قیمت بالای EMA100 است. خروج: MACD زیر خط سیگنال برود.',
+    entry:(X,i)=>X.mh[i-1]<=0&&X.mh[i]>0&&X.c[i]>X.e100[i],exit:(X,i)=>X.mh[i]<0,stop:2,bear:(X,i)=>X.mh[i]<0},
+  {id:'pullback',name:'پولبک در روند صعودی',desc:'ورود: RSI زیر ۴۰ بیاید وقتی قیمت بالای SMA100 است. خروج: RSI بالای ۶۰ برود یا ۲۰ کندل بگذرد.',
+    entry:(X,i)=>X.c[i]>X.s100[i]&&X.rsi[i]<40,exit:(X,i)=>X.rsi[i]>60,stop:2.5,maxBars:20,bear:(X,i)=>X.c[i]<X.s100[i]},
+  {id:'dip',name:'شکار کف',desc:'ورود: سیگنال خرید قوی یا خیلی قوی «شکار کف». خروج: رسیدن به نیمهٔ افت (هدف ۱)، حد ضرر زیر کف، یا ۳۰ کندل.',
+    entry:(X,i)=>X.dipState[i]==='buy'||X.dipState[i]==='buy2',stopAt:(X,i)=>X.dipStop[i],targetAt:(X,i)=>X.dipT1[i],maxBars:30,bear:(X,i)=>X.dipState[i]==='falling'},
+  {id:'super',name:'سوپرترند',desc:'ورود: سوپرترند (ATR 10، ضریب ۳) صعودی شود. خروج: نزولی شود. حد ضرر: خط سوپرترند که با قیمت بالا می‌آید.',
+    entry:(X,i)=>X.std[i-1]===-1&&X.std[i]===1,exit:(X,i)=>X.std[i]===-1,stopAt:(X,i)=>X.stl[i],trailAt:(X,i)=>X.std[i]===1?X.stl[i]:null,bear:(X,i)=>X.std[i]===-1},
+  {id:'ichimoku',name:'ابر ایچیموکو',desc:'ورود: بسته‌شدن بالای ابر، وقتی تنکان بالای کیجون است. خروج: بسته‌شدن زیر کیجون.',
+    entry:(X,i)=>X.ctop[i]!=null&&X.ctop[i-1]!=null&&X.c[i]>X.ctop[i]&&X.c[i-1]<=X.ctop[i-1]&&X.ten[i]>X.kij[i],exit:(X,i)=>X.c[i]<X.kij[i],stop:2.5,bear:(X,i)=>X.cbot[i]!=null&&X.c[i]<X.cbot[i]},
+  {id:'golden',name:'تقاطع طلایی',desc:'ورود: SMA50 از بالای SMA200 رد شود. خروج: SMA50 زیر SMA200 برود (تقاطع مرگ).',
+    entry:(X,i)=>X.s200[i-1]!=null&&X.s50[i-1]<=X.s200[i-1]&&X.s50[i]>X.s200[i],exit:(X,i)=>X.s50[i]<X.s200[i],stop:3,bear:(X,i)=>X.s200[i]!=null&&X.s50[i]<X.s200[i]}
+];
+// Decision at the close of candle i. Orders are filled at the next candle's open, so the test never peeks into the future.
+function step(X,S,st,i){
+  if(st.pos){const p=st.pos;p.bars++;if(S.trailAt){const tv=S.trailAt(X,i);if(tv!=null)p.stop=Math.max(p.stop,tv)}
+    if(S.trail&&X.atr[i]){p.hi=Math.max(p.hi,X.c[i]);p.stop=Math.max(p.stop,p.hi-S.trail*X.atr[i])}
+    return (S.exit&&S.exit(X,i))||(S.maxBars&&p.bars>=S.maxBars)?{act:'exit'}:{act:'hold'}}
+  if(X.ready[i]&&S.entry(X,i)){const stop=S.stopAt?S.stopAt(X,i):X.c[i]-S.stop*X.atr[i],target=S.targetAt?S.targetAt(X,i):null;
+    if(stop!=null&&stop<X.c[i]&&(!target||target>X.c[i]))return{act:'enter',stop,target}}
+  return{act:'wait'}}
+function backtest(X,S,from,to,live){
+  const st={pos:null},trades=[];let eq=1,peak=1,mdd=0;
+  const close=(j,px,why)=>{const p=st.pos,r=px*(1-FEE)/(p.entry*(1+FEE))-1;eq*=1+r;trades.push({ei:p.ei,xi:j,entry:p.entry,exit:px,r,why});st.pos=null};
+  for(let i=from;i<to;i++){const j=i+1,d=step(X,S,st,i);
+    if(d.act==='exit')close(j,X.o[j],'سیگنال خروج');
+    else if(d.act==='enter'&&d.stop<X.o[j]&&(!d.target||d.target>X.o[j]))st.pos={ei:j,entry:X.o[j],stop:d.stop,target:d.target,hi:X.o[j],bars:0};
+    if(st.pos){const p=st.pos;if(X.l[j]<=p.stop)close(j,Math.min(X.o[j],p.stop),'حد ضرر');else if(p.target&&X.h[j]>=p.target)close(j,Math.max(X.o[j],p.target),'هدف')}
+    const m=st.pos?eq*X.c[j]*(1-FEE)/(st.pos.entry*(1+FEE)):eq;peak=Math.max(peak,m);mdd=Math.max(mdd,1-m/peak)}
+  const fin=st.pos?eq*X.c[to]*(1-FEE)/(st.pos.entry*(1+FEE)):eq;
+  let gw=0,gl=0,w=0;for(const x of trades){if(x.r>0){gw+=x.r;w++}else gl-=x.r}
+  const res={trades,ret:fin-1,n:trades.length,win:trades.length?w/trades.length:null,pf:gl>0?gw/gl:(gw>0?99:null),mdd,bh:X.c[to]/X.c[from]-1,open:st.pos};
+  if(live){const pos=st.pos?{...st.pos}:null;res.live={...step(X,S,st,to),pos:st.pos?{...st.pos}:pos}}
+  return res}
+function study(k){
+  const X=prep(k),n=X.n,start=X.ready.indexOf(true);
+  if(start<0||n-1-start<60)return{short:true,X,bars:n};
+  const split=start+Math.floor((n-1-start)*0.6);
+  const rows=STRATS.map(S=>({S,tr:backtest(X,S,start,split),te:backtest(X,S,split,n-1),full:backtest(X,S,start,n-1,true)}));
+  const best=rows.filter(r=>r.tr.n>=3&&r.tr.ret>0&&r.tr.pf>1).sort((a,b)=>b.tr.ret-a.tr.ret)[0]||null;
+  const verdict=!best?'none':best.te.n<2?'weak':best.te.ret>0?'ok':'fail';
+  const live=best?best.full.live:null,last=n-1;
+  for(const r of rows){const L=r.full.live,cnt=r.full.n+(r.full.open?1:0);
+    r.w=r.tr.ret>0&&r.te.ret>0&&cnt>=3?2:r.full.ret>0&&cnt>=2?1:0;
+    r.vote=L.act==='enter'||L.act==='hold'?1:L.act==='exit'||(r.S.bear&&r.S.bear(X,last))?-1:0;
+    r.state=L.act==='enter'?'سیگنال ورود همین الان':L.act==='hold'?'در معامله از '+fd(X.t[L.pos.ei])+' · حد ضرر '+fmt(L.pos.stop):L.act==='exit'?'سیگنال خروج همین الان':r.vote<0?'شرایط نزولی':'منتظر سیگنال'}
+  let sw=0,ss=0;for(const r of rows){sw+=r.w;ss+=r.w*r.vote}
+  const score=sw?Math.round(100*ss/sw):null,used=rows.filter(r=>r.w>0);
+  const comb=score==null?'none':score>=50?'sbuy':score>=20?'buy':score<=-50?'ssell':score<=-20?'sell':'neutral';
+  const rank=score==null?999:-score;
+  return{X,rows,best,verdict,live,rank,score,comb,used,nb:used.filter(r=>r.vote>0).length,ns:used.filter(r=>r.vote<0).length,nn:used.filter(r=>r.vote===0).length,start,split,bh:{tr:X.c[split]/X.c[start]-1,te:X.c[n-1]/X.c[split]-1,full:X.c[n-1]/X.c[start]-1}}}
+const ACT={enter:['خرید','strong'],hold:['در معامله: نگه‌دار','buy'],exit:['فروش / خروج','sell'],wait:['صبر','wait']};
+const COMB={sbuy:['خرید قوی','strong'],buy:['خرید','buy'],neutral:['خنثی','wait'],sell:['فروش','sell'],ssell:['فروش قوی','sell'],none:['بدون استراتژی معتبر','wait']};
+const VOTE={'1':['خرید','buy'],'0':['خنثی','wait'],'-1':['فروش','sell']};
+const VERD={ok:['معتبر در آزمون','buy'],weak:['معاملهٔ کافی نبود','hold'],fail:['در آزمون شکست خورد','sell'],none:['استراتژی سودده پیدا نشد','wait']};
+/*__CORE_END__*/
+const pc=x=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(1)+'%';
+const cls=x=>x==null?'flat':x>0?'up':x<0?'down':'flat';
+const P=(L)=>'<span class="pill '+L[1]+'">'+L[0]+'</span>';
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fd(t){const d=new Date(t),z=x=>String(x).padStart(2,'0');return tf==='1d'||tf==='1w'?d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate():(d.getMonth()+1)+'/'+d.getDate()+' '+z(d.getHours())+':'+z(d.getMinutes())}
+
+const TFS={'1d':'1d','1w':'1wk','1h':'60m'},KTF={'1d':1440,'1w':10080,'1h':60};
+const isCrypto=()=>uni==='crypto'||uni==='ccustom';
+const UNIVERSE={
+  big:['AAPL','MSFT','NVDA','AMZN','GOOGL','META','TSLA','AVGO','BRK-B','JPM','LLY','V','UNH','XOM','MA','COST','HD','PG','JNJ','WMT','NFLX','ABBV','BAC','CRM','ORCL','CVX','KO','MRK','AMD','PEP','ADBE','TMO','LIN','ACN','MCD','CSCO','WFC','ABT','DIS','INTU','QCOM','IBM','GE','CAT','TXN','AMGN','VZ','PFE','NOW','ISRG','PM','GS','SPGI','UBER','AMAT','CMCSA','RTX','UNP','T','LOW','NEE','HON','BKNG','BLK','AXP','PGR','SYK','MS','TJX','C','VRTX','BSX','ETN','DE','MDT','SCHW','ADP','PANW','LRCX','MU','REGN','PLD','CB','ADI','KLAC','SBUX','GILD','BX','ANET','INTC','PYPL','NKE','BA','F','GM','SO','DUK','MO','CL','LMT'],
+  growth:['NVDA','AMD','TSLA','META','NFLX','AVGO','PLTR','COIN','SHOP','SNOW','CRWD','PANW','ANET','SMCI','ARM','MRVL','MU','UBER','ABNB','DDOG','NET','ZS','MDB','TTD','RBLX','SOFI','HOOD','RIVN','MSTR','APP','DASH','ROKU','U','AFRM','NOW','ADBE','INTU','LRCX','AMAT','KLAC'],
+  crypto:['BTC','ETH','SOL','XRP','BNB','ADA','DOGE','TRX','AVAX','LINK','DOT','LTC','BCH','XLM','ATOM','UNI','AAVE','NEAR','APT','ARB','OP','SUI','INJ','FIL','ICP','ETC','HBAR','ALGO','PEPE','SHIB','WIF','BONK','TIA','RENDER','FET','TAO','ONDO','JUP','POL','SEI','PAXG'],
+  etf:['SPY','QQQ','DIA','IWM','XLK','XLF','XLE','XLV','XLY','XLP','XLI','XLU','XLB','XLRE','XLC','SMH','ARKK','GLD','SLV','TLT']
+};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let tf=store.get('sc.tf','1d');if(!TFS[tf])tf='1d';
+let uni=store.get('sc.uni','big');
+const $=id=>document.getElementById(id);
+let data={},selected=null,order=[];
+async function getJSON(url){
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),15000);
+  try{const r=await fetch(url,{signal:ctl.signal});
+    if(r.status===400||r.status===404){const e=new Error('bad symbol');e.bad=true;throw e}
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    if((r.headers.get('content-type')||'').indexOf('json')<0)throw new Error('not json');
+    return await r.json()}finally{clearTimeout(timer)}
+}
+// "Buy setup" = a fresh entry from a strategy that worked on this symbol, while the price has NOT already run away.
+function tier(a,P){
+  const X=a.X,i=X.n-1,atr=X.atr[i];
+  const fr=a.used.filter(r=>{const L=r.full.live;return L.act==='enter'||(L.act==='hold'&&L.pos&&i-L.pos.ei<=3&&P<=L.pos.entry+atr)});
+  const stops=fr.map(r=>{const L=r.full.live;return L.act==='enter'?L.stop:L.pos.stop}).filter(x=>x!=null&&x<P);
+  let stop=stops.length?Math.max(...stops):null;if(stop!=null&&P-stop<atr)stop=P-atr;
+  const risk=stop!=null?P-stop:null,res=hhv(X.h,60,i),atHigh=res<=P*1.001,room=risk!=null&&(atHigh||res-P>=risk);
+  const ext=(P-X.e20[i])/atr,rs=X.rsi[i],run=(P-X.c[Math.max(0,i-5)])/atr;
+  const checks=[
+    ['سیگنال ورود تازه از استراتژی معتبر (در ۴ کندل اخیر، و قیمت هنوز کمتر از ۱ ATR بالاتر از ورود)',fr.length>0,fr.length?fr.map(r=>r.S.name).join('، '):'ندارد'],
+    ['قیمت از EMA20 دور نشده (حداکثر ۱٫۵ ATR بالاتر)',ext<=1.5,ext.toFixed(1)+' ATR'],
+    ['RSI زیر ۶۵ (هنوز اشباع خرید نیست)',rs<65,f1(rs)],
+    ['در ۵ کندل اخیر جهش نکرده (کمتر از ۲٫۵ ATR)',run<2.5,run.toFixed(1)+' ATR'],
+    ['رأی خرید استراتژی‌های معتبر بیشتر از رأی فروش',a.nb>a.ns,a.nb+' خرید / '+a.ns+' فروش'],
+    ['فضای رشد تا سقف ۶۰ کندل دست‌کم برابر ریسک',room,atHigh?'در سقف (شکست)':fmt(res)]];
+  const all=checks.every(c=>c[1]),bull=a.score!=null&&a.score>=20;
+  const t=all&&fr.length>=2?'prime':all?'setup':bull?(fr.length?'late':'trend'):a.score!=null&&a.score<=-20?'sell':'none';
+  return{t,checks,fresh:fr.length,ext,rsi:rs,plan:risk!=null?{entry:P,stop,target:P+2*risk,res,atHigh}:null,rank:{prime:0,setup:1,late:2,trend:3,none:4,sell:5}[t]}}
+const TIER={prime:['موقعیت خرید عالی','strong'],setup:['موقعیت خرید','buy'],late:['بالا رفته، دیر است','hold'],trend:['صعودی، منتظر پولبک','wait'],none:['بدون سیگنال','wait'],sell:['فروش','sell']};
+async function loadStock(s){
+  const j=await getJSON(isCrypto()?'/.netlify/functions/market?coin='+encodeURIComponent(s)+'&interval='+KTF[tf]+'&n=720':'/.netlify/functions/stocks?symbol='+encodeURIComponent(s)+'&tf='+TFS[tf]+'&n=720');
+  const k=j.candles.map(x=>({t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5]}));
+  if(k.length<40)throw new Error('short');
+  const a=study(k.slice(0,-1));if(!a.short)a.tier=tier(a,k[k.length-1].c);
+  data[s]={k,live:k[k.length-1].c,a,src:j.source};
+}
+function universe(){
+  if(uni==='custom'||uni==='ccustom')return [...new Set(($('custom').value.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]*/g)||[]))].slice(0,150);
+  return UNIVERSE[uni];
+}
+let scanning=false,stopReq=false;
+async function scan(){
+  if(scanning){stopReq=true;return}
+  const list=universe();if(!list.length){$('status').textContent='نمادی وارد نشده است.';return}
+  FEE=isCrypto()?0.004:0.0005;THR=isCrypto()?{'1h':5,'1d':15,'1w':25}:{'1h':3,'1d':8,'1w':15};
+  scanning=true;stopReq=false;data={};order=list;selected=null;$('scanBtn').textContent='توقف اسکن';$('error').hidden=true;
+  let i=0,done=0,fail=0;const t0=Date.now();
+  const prog=()=>{$('bar').style.width=(100*done/list.length)+'%';$('status').textContent='در حال اسکن: '+done+' از '+list.length};
+  prog();renderList();
+  await Promise.all(Array.from({length:4},async()=>{while(i<list.length&&!stopReq){const s=list[i++];
+    try{await loadStock(s)}catch(e){fail++;data[s]={err:e.bad?'نماد پیدا نشد':'خطای دریافت'}}
+    done++;prog();renderList();await new Promise(r=>setTimeout(r,30))}}));
+  scanning=false;$('scanBtn').textContent='شروع اسکن';
+  const ok=done-fail,src=Object.values(data).find(d=>d.src);
+  $('status').textContent=(stopReq?'اسکن متوقف شد · ':'')+ok+' نماد بررسی شد'+(fail?' · '+fail+' خطا':'')+(src?' · منبع: '+src.src:'')+' · '+new Date().toLocaleTimeString('fa-IR');
+  if(!ok){$('error').hidden=false;$('error').textContent='داده‌ای دریافت نشد. اگر فایل سرور stocks.js را هنوز به گیت‌هاب اضافه نکرده‌اید، اول آن را اضافه کنید؛ وگرنه چند دقیقه بعد دوباره امتحان کنید.'}
+  const counts={prime:0,setup:0,late:0};for(const d of Object.values(data))if(d.a&&d.a.tier&&counts[d.a.tier.t]!=null)counts[d.a.tier.t]++;
+  $('summary').textContent=counts.prime+' موقعیت خرید عالی · '+counts.setup+' موقعیت خرید · '+counts.late+' نماد که بالا رفته و دیر است';
+  if(!selected){const first=sorted()[0];if(first)select(first)}
+}
+function sorted(){return order.filter(s=>data[s]&&data[s].a&&data[s].a.tier).sort((x,y)=>{const a=data[x].a,b=data[y].a;return a.tier.rank-b.tier.rank||(b.score||0)-(a.score||0)})}
+function renderList(){
+  const tb=$('market').tBodies[0],only=$('onlyStrong').checked;
+  let rows=sorted();if(only)rows=rows.filter(s=>data[s].a.tier.t==='prime'||data[s].a.tier.t==='setup');
+  const errs=only?[]:order.filter(s=>data[s]&&(data[s].err||(data[s].a&&data[s].a.short)));
+  tb.innerHTML='';
+  if(!rows.length&&!errs.length){tb.innerHTML='<tr><td colspan="7" class="sub">'+(scanning?'در حال اسکن… نتیجه‌ها همین‌جا ظاهر می‌شوند.':only?'الان هیچ نمادی موقعیت خرید ندارد؛ یعنی یا سیگنال تازه‌ای نیست یا قیمت‌ها از قبل بالا رفته‌اند. تیک فیلتر را بردارید تا همه را ببینید، یا بعداً دوباره اسکن کنید.':'برای شروع، «شروع اسکن» را بزنید.')+'</td></tr>';return}
+  rows.forEach((s,n)=>{const d=data[s],a=d.a,tr=document.createElement('tr');tr.tabIndex=0;if(s===selected)tr.className='sel';
+    tr.innerHTML='<td class="num sub">'+(n+1)+'</td><td class="sym">'+esc(s)+'</td><td class="num">'+fmt(d.live)+'</td><td class="num">'+(a.tier.fresh||'—')+'</td><td class="num '+(a.tier.ext>1.5?'down':'')+'">'+a.tier.ext.toFixed(1)+'</td><td class="num '+(a.tier.rsi>=65?'down':'')+'">'+f1(a.tier.rsi)+'</td><td>'+P(TIER[a.tier.t])+'</td>';
+    tr.onclick=()=>select(s);tr.onkeydown=e=>{if(e.key==='Enter')select(s)};tb.appendChild(tr)});
+  errs.forEach(s=>{const d=data[s],tr=document.createElement('tr');tr.innerHTML='<td></td><td class="sym">'+esc(s)+'</td><td colspan="5" class="sub">'+(d.err||'تاریخچهٔ کافی نیست')+'</td>';tb.appendChild(tr)});
+}
+function select(s){selected=s;renderList();renderDetail();renderChecks();}
+function renderChecks(){
+  const d=data[selected],a=d&&d.a,tb=$('checks').tBodies[0];
+  if(!a||!a.tier){tb.innerHTML='';return}
+  tb.innerHTML=a.tier.checks.map(c=>'<tr><td style="white-space:normal">'+c[0]+'</td><td class="num">'+c[2]+'</td><td class="'+(c[1]?'ok':'no')+'">'+(c[1]?'✓':'✗')+'</td></tr>').join('')+'<tr class="stage"><td colspan="2">وضعیت این نماد</td><td>'+P(TIER[a.tier.t])+'</td></tr>'+(a.tier.plan&&(a.tier.t==='prime'||a.tier.t==='setup')?[['ورود پیشنهادی (قیمت فعلی)',fmt(a.tier.plan.entry),''],['حد ضرر',fmt(a.tier.plan.stop),'down'],['هدف (۲ برابر ریسک)',fmt(a.tier.plan.target),'up'],['مقاومت (سقف ۶۰ کندل)',a.tier.plan.atHigh?'در سقف است':fmt(a.tier.plan.res),'']].map(x=>'<tr><td>'+x[0]+'</td><td class="num '+x[2]+'" colspan="2">'+x[1]+'</td></tr>').join(''):'');
+}
+function renderDetail(){
+  const d=data[selected],a=d&&d.a;
+  $('dSym').textContent=selected?selected:'—';
+  const clear=()=>{$('stats').innerHTML='';['votes','cmp','trades'].forEach(id=>$(id).tBodies[0].innerHTML='')};
+  if(!a){$('dSig').textContent='—';$('dSig').style.color='';$('dWhy').textContent='';$('dPrice').textContent='—';clear();draw();return}
+  $('dPrice').textContent=fmt(d.live);
+  if(a.short){$('dSig').textContent='داده کافی نیست';$('dSig').style.color='var(--muted)';$('dWhy').textContent='در این تایم‌فریم فقط '+a.bars+' کندل موجود است. تایم‌فریم کوتاه‌تری انتخاب کنید.';clear();draw();return}
+  const C=COMB[a.comb];$('dSig').textContent=a.comb==='none'?'سیگنال قابل‌اعتمادی نیست':C[0];
+  $('dSig').style.color={sbuy:'var(--buy)',buy:'var(--buy)',sell:'var(--sell)',ssell:'var(--sell)'}[a.comb]||'var(--muted)';
+  $('dWhy').textContent=a.comb==='none'?'هیچ‌کدام از ۸ استراتژی روی گذشتهٔ این نماد سودده نبود. در این تایم‌فریم معامله نکنید.':a.used.length+' استراتژی از ۸ تا معتبر بودند و شمرده شدند: '+a.nb+' خرید، '+a.ns+' فروش، '+a.nn+' خنثی';
+  const S=(label,val,c)=>'<div class="stat"><span>'+label+'</span><b class="num '+(c||'')+'">'+val+'</b></div>';
+  let h=S('امتیاز ترکیبی (−۱۰۰ تا +۱۰۰)',a.score==null?'—':(a.score>0?'+':'')+a.score,cls(a.score));
+  const b=a.best;
+  if(b){const L=b.full.live,pos=L.pos;h+=S('بهترین استراتژی',b.S.name);
+    if(L.act==='enter')h+=S('ورود (تقریبی)',fmt(d.live))+S('حد ضرر',fmt(L.stop),'down')+S('هدف',L.target?fmt(L.target):'تا سیگنال خروج','up');
+    else if(pos)h+=S('قیمت ورود',fmt(pos.entry))+S('حد ضرر فعلی',fmt(pos.stop),'down')+S('سود/زیان فعلی',pc(d.live/pos.entry-1),cls(d.live/pos.entry-1));
+    h+=S('بازدهی آن در آزمون',pc(b.te.ret),cls(b.te.ret))+S('نگه‌داشتن ساده در همان دوره',pc(a.bh.te),cls(a.bh.te))}
+  $('stats').innerHTML=h;
+  const W={2:'کامل',1:'نصف',0:'شمرده نمی‌شود'};
+  $('votes').tBodies[0].innerHTML=a.rows.slice().sort((x,y)=>y.w-x.w||y.vote-x.vote).map(r=>'<tr><td><b>'+r.S.name+'</b></td><td>'+P(VOTE[String(r.vote)])+'</td><td style="white-space:normal">'+r.state+'</td><td class="num '+cls(r.te.ret)+'">'+pc(r.te.ret)+'</td><td class="'+(r.w?'':'sub')+'">'+W[r.w]+'</td></tr>').join('');
+  $('period').textContent='آموزش: '+fd(a.X.t[a.start])+' تا '+fd(a.X.t[a.split])+' · آزمون: '+fd(a.X.t[a.split])+' تا '+fd(a.X.t[a.X.n-1]);
+  const row=(name,desc,tr,te,full,isBest)=>'<tr'+(isBest?' class="best"':'')+'><td style="white-space:normal;min-width:180px"><b>'+name+'</b>'+(isBest?' <span class="pill strong">بهترین</span>':'')+(desc?'<div class="mini">'+desc+'</div>':'')+'</td><td class="num '+cls(tr)+'">'+pc(tr)+'</td><td class="num '+cls(te)+'">'+pc(te)+'</td>'+(full?'<td class="num">'+(full.win==null?'—':Math.round(full.win*100)+'%')+'</td><td class="num">'+full.n+'</td><td class="num">'+(full.pf==null?'—':full.pf>=99?'∞':full.pf.toFixed(2))+'</td><td class="num down">−'+(full.mdd*100).toFixed(1)+'%</td>':'<td>—</td><td>—</td><td>—</td><td>—</td>')+'</tr>';
+  $('cmp').tBodies[0].innerHTML=a.rows.map(r=>row(r.S.name,r.S.desc,r.tr.ret,r.te.ret,r.full,b&&r===b)).join('')+row('خرید و نگه‌داشتن','فقط بخرید و تا آخر دوره نگه دارید؛ معیار مقایسه',a.bh.tr,a.bh.te,null,false);
+  const T=b?b.full.trades.slice(-10).reverse():[];
+  $('trades').tBodies[0].innerHTML=b?(b.full.open?'<tr><td class="num">'+fd(a.X.t[b.full.open.ei])+'</td><td class="num">'+fmt(b.full.open.entry)+'</td><td colspan="2" class="sub">هنوز باز است</td><td class="num '+cls(d.live/b.full.open.entry-1)+'">'+pc(d.live/b.full.open.entry-1)+'</td><td></td></tr>':'')+T.map(x=>'<tr><td class="num">'+fd(a.X.t[x.ei])+'</td><td class="num">'+fmt(x.entry)+'</td><td class="num">'+fd(a.X.t[x.xi])+'</td><td class="num">'+fmt(x.exit)+'</td><td class="num '+cls(x.r)+'">'+pc(x.r)+'</td><td>'+x.why+'</td></tr>').join(''):'<tr><td colspan="6" class="sub">استراتژی معتبری نیست</td></tr>';
+  draw();
+}
+function draw(){
+  const cv=$('chart'),dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  const d=data[selected];if(!d||!d.a||!d.a.X)return;
+  const a=d.a,X=a.X,cs=getComputedStyle(document.documentElement),col=n=>cs.getPropertyValue(n).trim();
+  const N=Math.min(d.k.length,W<500?70:140),off=d.k.length-N,k=d.k.slice(off);
+  const padR=64,axisH=18,gap=14,mH=Math.round(H*0.18),rH=Math.round(H*0.15),pT=6,pH=H-axisH-mH-rH-2*gap-pT,mT=pT+pH+gap,rT=mT+mH+gap;
+  const cw=(W-padR)/N,x=i=>i*cw+cw/2,v=(arr,i)=>arr[off+i]==null?null:arr[off+i];
+  g.font='11px '+col('--mono');g.textBaseline='middle';
+  const b=a.best,pos=b&&b.full.live?b.full.live.pos:null;
+  let hi=-Infinity,lo=Infinity;k.forEach(q=>{hi=Math.max(hi,q.h);lo=Math.min(lo,q.l)});
+  if(pos){lo=Math.min(lo,pos.stop);if(pos.target)hi=Math.max(hi,pos.target)}
+  const pad=(hi-lo)*0.05||1;hi+=pad;lo-=pad;const y=p=>pT+(hi-p)/(hi-lo)*pH;
+  const grid=(yy,label)=>{yy=Math.round(yy)+.5;g.strokeStyle=col('--line');g.lineWidth=1;g.beginPath();g.moveTo(0,yy);g.lineTo(W-padR,yy);g.stroke();if(label!=null){g.fillStyle=col('--muted');g.textAlign='left';g.fillText(label,W-padR+6,yy)}};
+  for(let i=0;i<=4;i++){const p=lo+(hi-lo)*i/4;grid(y(p),fmt(p))}
+  const line=(arr,c,Y,dash,w)=>{g.strokeStyle=c;g.lineWidth=w||1.4;g.setLineDash(dash||[]);g.beginPath();let st=false;for(let i=0;i<N;i++){const val=v(arr,i);if(val==null)continue;st?g.lineTo(x(i),Y(val)):(g.moveTo(x(i),Y(val)),st=true)}g.stroke();g.setLineDash([])};
+  line(X.e50,col('--hold'),y);line(X.e20,col('--accent'),y);
+  const bw=Math.max(1,cw*0.66);
+  k.forEach((q,i)=>{const c=col(q.c>=q.o?'--buy':'--sell');g.strokeStyle=c;g.fillStyle=c;g.lineWidth=1;const xx=Math.round(x(i))+.5;g.beginPath();g.moveTo(xx,y(q.h));g.lineTo(xx,y(q.l));g.stroke();const y1=y(Math.max(q.o,q.c)),y2=y(Math.min(q.o,q.c));g.fillRect(x(i)-bw/2,y1,bw,Math.max(1,y2-y1))});
+  const tri=(i,up,c)=>{const q=d.k[i];if(!q||i<off)return;const xx=x(i-off),s=Math.max(4,Math.min(7,cw*0.6)),yy=up?y(q.l)+6:y(q.h)-6;g.fillStyle=c;g.beginPath();if(up){g.moveTo(xx,yy);g.lineTo(xx-s,yy+s*1.6);g.lineTo(xx+s,yy+s*1.6)}else{g.moveTo(xx,yy);g.lineTo(xx-s,yy-s*1.6);g.lineTo(xx+s,yy-s*1.6)}g.closePath();g.fill()};
+  if(b){for(const t of b.full.trades){tri(t.ei,true,col('--buy'));tri(t.xi,false,col('--sell'))}if(b.full.open)tri(b.full.open.ei,true,col('--buy'))}
+  const hl=(p,c,t)=>{if(p==null)return;const yy=Math.round(y(p))+.5;g.strokeStyle=c;g.lineWidth=1.2;g.setLineDash([6,4]);g.beginPath();g.moveTo(0,yy);g.lineTo(W-padR,yy);g.stroke();g.setLineDash([]);g.fillStyle=c;g.textAlign='left';g.fillText(t,4,yy-8)};
+  if(pos){hl(pos.entry,col('--muted'),'ENTRY');hl(pos.stop,col('--sell'),'STOP');if(pos.target)hl(pos.target,col('--buy'),'TARGET')}
+  const ly=y(d.live);g.fillStyle=col('--fg');g.fillRect(W-padR+2,ly-9,padR-2,18);g.fillStyle=col('--bg');g.textAlign='left';g.fillText(fmt(d.live),W-padR+6,ly);
+  // MACD pane
+  let mx=0;for(let i=0;i<N;i++)for(const arr of [X.mm,X.ms,X.mh]){const val=v(arr,i);if(val!=null)mx=Math.max(mx,Math.abs(val))}mx=mx||1;
+  const ym=val=>mT+mH/2-val/mx*(mH/2);
+  g.strokeStyle=col('--line');g.strokeRect(0.5,mT+.5,W-padR-1,mH-1);grid(ym(0),'0');
+  for(let i=0;i<N;i++){const val=v(X.mh,i);if(val==null)continue;g.fillStyle=col(val>=0?'--buy':'--sell');g.globalAlpha=.5;const y0=ym(0),y1=ym(val);g.fillRect(x(i)-bw/2,Math.min(y0,y1),bw,Math.max(1,Math.abs(y1-y0)));g.globalAlpha=1}
+  line(X.mm,col('--accent'),ym);line(X.ms,col('--hold'),ym);
+  g.fillStyle=col('--muted');g.textAlign='left';g.fillText('MACD 12,26,9',6,mT+10);
+  // RSI pane
+  const yr=val=>rT+(100-val)/100*rH;
+  g.strokeStyle=col('--line');g.strokeRect(0.5,rT+.5,W-padR-1,rH-1);
+  g.fillStyle=col('--panel2');g.fillRect(1,yr(70),W-padR-2,yr(30)-yr(70));
+  [70,50,30].forEach(lv=>{g.strokeStyle=col('--line');g.setLineDash(lv===50?[2,4]:[5,4]);g.beginPath();g.moveTo(0,Math.round(yr(lv))+.5);g.lineTo(W-padR,Math.round(yr(lv))+.5);g.stroke();g.setLineDash([]);g.fillStyle=col('--muted');g.textAlign='left';g.fillText(String(lv),W-padR+6,yr(lv))});
+  line(X.rsi,col('--accent'),yr,null,1.6);
+  const lr=v(X.rsi,N-2);g.fillStyle=col('--muted');g.textAlign='left';g.fillText('RSI 14'+(lr!=null?'  '+lr.toFixed(1):''),6,rT+10);
+  // time axis
+  g.fillStyle=col('--muted');g.textAlign='center';const step=Math.ceil(N/(W<500?3:6));
+  for(let i=Math.floor(step/2);i<N;i+=step)g.fillText(fd(k[i].t),x(i),H-axisH/2);
+}
+
+$('tf').onclick=e=>{const b=e.target.closest('button');if(!b||scanning)return;tf=b.dataset.tf;store.set('sc.tf',tf);document.querySelectorAll('#tf button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.tf===tf));scan()};
+document.querySelectorAll('#tf button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.tf===tf));
+const custKey=()=>uni==='ccustom'?'sc.ccustom':'sc.custom',custDef=()=>uni==='ccustom'?'BTC, ETH, SOL, PEPE':'AAPL, MSFT, NVDA, TSLA';
+const syncCustom=()=>{const c=uni==='custom'||uni==='ccustom';$('custom').hidden=!c;if(c){$('custom').value=store.get(custKey(),custDef());$('custom').placeholder=uni==='ccustom'?'مثلاً BTC, SOL, PEPE':'مثلاً AAPL, TSLA, AMD'}};
+$('uni').value=uni;syncCustom();
+$('uni').onchange=()=>{uni=$('uni').value;store.set('sc.uni',uni);syncCustom();if(uni!=='custom'&&uni!=='ccustom')scan()};
+$('custom').onchange=()=>store.set(custKey(),$('custom').value);
+$('scanBtn').onclick=scan;$('onlyStrong').onchange=renderList;
+window.addEventListener('resize',draw);
+if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+renderList();scan();
+</script>
+</body>
+</html>
