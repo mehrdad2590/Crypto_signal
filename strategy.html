@@ -95,7 +95,7 @@ canvas{width:100%;height:560px;display:block}
   <header>
     <div>
       <h1>استراتژی آزموده</h1>
-      <div class="sub">سیگنال فقط از استراتژی‌ای که روی گذشتهٔ همان ارز آزموده شده · <span id="status">در حال دریافت داده…</span></div>
+      <div class="sub">سیگنال ترکیبی از ۸ استراتژی آزموده‌شده روی گذشتهٔ همان ارز · <span id="status">در حال دریافت داده…</span></div>
       <nav class="apps"><a href="./">سیگنال‌یاب کلی</a><a href="dip.html">شکار کف</a></nav>
     </div>
     <div class="controls">
@@ -109,9 +109,9 @@ canvas{width:100%;height:560px;display:block}
   <div id="error" class="err" hidden></div>
   <div class="grid">
     <section class="panel">
-      <div class="panel-head"><h2>بازار</h2><span class="sub">ارزهای با سیگنال معتبر بالای فهرست می‌آیند</span></div>
+      <div class="panel-head"><h2>بازار</h2><span class="sub">قوی‌ترین سیگنال خرید بالای فهرست می‌آید</span></div>
       <div class="scroll"><table id="market">
-        <thead><tr><th>نماد</th><th>قیمت (دلار)</th><th>استراتژی برنده</th><th>بازدهی آزمون</th><th>اعتبار</th><th>سیگنال</th><th></th></tr></thead>
+        <thead><tr><th>نماد</th><th>قیمت (دلار)</th><th>خرید</th><th>فروش</th><th>امتیاز</th><th>سیگنال ترکیبی</th><th></th></tr></thead>
         <tbody></tbody>
       </table></div>
     </section>
@@ -124,8 +124,12 @@ canvas{width:100%;height:560px;display:block}
         <div class="stats" id="stats"></div>
       </section>
       <section class="panel">
+        <div class="panel-head"><h2>رأی استراتژی‌ها</h2><span class="sub">وزن «کامل»: در آموزش و آزمون سودده · «نصف»: فقط در کل دوره سودده</span></div>
+        <div class="scroll"><table id="votes"><thead><tr><th>استراتژی</th><th>رأی</th><th>وضعیت فعلی</th><th>بازدهی آزمون</th><th>وزن</th></tr></thead><tbody></tbody></table></div>
+      </section>
+      <section class="panel">
         <div class="panel-head"><h2>نمودار قیمت، MACD و RSI</h2>
-          <div class="legend"><span><i style="background:var(--accent)"></i>EMA 20 / خط MACD</span><span><i style="background:var(--hold)"></i>EMA 50 / خط سیگنال</span><span><i style="background:var(--buy)"></i>▲ ورود</span><span><i style="background:var(--sell)"></i>▼ خروج</span></div>
+          <div class="legend"><span><i style="background:var(--accent)"></i>EMA 20 / خط MACD</span><span><i style="background:var(--hold)"></i>EMA 50 / خط سیگنال</span><span><i style="background:var(--buy)"></i>▲ ورود بهترین استراتژی</span><span><i style="background:var(--sell)"></i>▼ خروج</span></div>
         </div>
         <canvas id="chart"></canvas>
       </section>
@@ -135,7 +139,7 @@ canvas{width:100%;height:560px;display:block}
         <p class="mini">استراتژی برنده فقط از روی بخش آموزش (۶۰٪ اول) انتخاب می‌شود و بعد روی بخش آزمون (۴۰٪ آخر) که در انتخاب دیده نشده سنجیده می‌شود. کارمزد ۰٫۴٪ برای هر خرید و فروش حساب شده است. ورود و خروج در قیمت باز شدن کندل بعد از سیگنال انجام می‌شود.</p>
       </section>
       <section class="panel">
-        <div class="panel-head"><h2>معاملات اخیر استراتژی برنده</h2></div>
+        <div class="panel-head"><h2>معاملات اخیر بهترین استراتژی</h2></div>
         <div class="scroll"><table id="trades"><thead><tr><th>ورود</th><th>قیمت ورود</th><th>خروج</th><th>قیمت خروج</th><th>نتیجه</th><th>دلیل خروج</th></tr></thead><tbody></tbody></table></div>
       </section>
     </div>
@@ -238,28 +242,44 @@ function macdArrs(c){const e12=ema(c,12),e26=ema(c,26),L=c.length,m=Array(L).fil
   for(let i=0;i<L;i++)if(e26[i]!=null){m[i]=e12[i]-e26[i];mm.push(m[i]);idx.push(i)}const ss=ema(mm,9);for(let j=0;j<mm.length;j++)if(ss[j]!=null){s[idx[j]]=ss[j];h[idx[j]]=mm[j]-ss[j]}return{m,s,h}}
 function hhv(a,n,i){let x=-Infinity;for(let j=Math.max(0,i-n+1);j<=i;j++)x=Math.max(x,a[j]);return x}
 function llv(a,n,i){let x=Infinity;for(let j=Math.max(0,i-n+1);j<=i;j++)x=Math.min(x,a[j]);return x}
+function superTrend(h,l,c,atr,m=3){const n=c.length,line=Array(n).fill(null),dir=Array(n).fill(null);let fu=null,fl=null,d=1;
+  for(let i=1;i<n;i++){if(atr[i]==null)continue;const mid=(h[i]+l[i])/2,bu=mid+m*atr[i],bl=mid-m*atr[i];
+    if(fu==null){fu=bu;fl=bl;d=c[i]>=mid?1:-1}else{fu=(bu<fu||c[i-1]>fu)?bu:fu;fl=(bl>fl||c[i-1]<fl)?bl:fl;if(d===1&&c[i]<fl)d=-1;else if(d===-1&&c[i]>fu)d=1}
+    dir[i]=d;line[i]=d===1?fl:fu}
+  return{line,dir}}
+function ichi(h,l,c){const n=c.length,mid=(p,i)=>i>=p-1?(hhv(h,p,i)+llv(l,p,i))/2:null,ten=[],kij=[],top=Array(n).fill(null),bot=Array(n).fill(null);
+  for(let i=0;i<n;i++){ten[i]=mid(9,i);kij[i]=mid(26,i)}
+  for(let i=26;i<n;i++){const j=i-26,sb=mid(52,j);if(ten[j]==null||kij[j]==null||sb==null)continue;const sa=(ten[j]+kij[j])/2;top[i]=Math.max(sa,sb);bot[i]=Math.min(sa,sb)}
+  return{ten,kij,top,bot}}
 function prep(k){
   const g=f=>k.map(f),o=g(x=>x.o),h=g(x=>x.h),l=g(x=>x.l),c=g(x=>x.c),t=g(x=>x.t),n=c.length,M=macdArrs(c);
   const X={k,o,h,l,c,t,n,e20:ema(c,20),e50:ema(c,50),e100:ema(c,100),s100:sma(c,100),atr:atrArr(h,l,c),adx:adxArr(h,l,c),rsi:rsiArr(c),mm:M.m,ms:M.s,mh:M.h};
+  X.s50=sma(c,50);X.s200=sma(c,200);const ST=superTrend(h,l,c,atrArr(h,l,c,10));X.stl=ST.line;X.std=ST.dir;const I=ichi(h,l,c);X.ten=I.ten;X.kij=I.kij;X.ctop=I.top;X.cbot=I.bot;
   X.ready=c.map((_,i)=>i>0&&X.s100[i]!=null&&X.e100[i]!=null&&X.adx[i]!=null&&X.atr[i]!=null&&X.mh[i]!=null&&X.mh[i-1]!=null&&X.rsi[i]!=null);
   X.dipState=Array(n).fill(null);X.dipStop=Array(n).fill(null);X.dipT1=Array(n).fill(null);
   for(let i=0;i<n;i++){if(!X.ready[i])continue;const d=dip(k.slice(Math.max(0,i-150),i+1),tf);X.dipState[i]=d.state;if(d.show){X.dipStop[i]=d.stop;X.dipT1[i]=d.t1}}
   return X}
 const STRATS=[
   {id:'trend',name:'دنبال‌کردن روند',desc:'ورود: EMA20 از بالای EMA50 رد شود و ADX بالای ۲۰ باشد. خروج: EMA20 زیر EMA50 برود یا حد ضرر متحرک ۳ ATR زیر بالاترین قیمت.',
-    entry:(X,i)=>X.e20[i-1]<=X.e50[i-1]&&X.e20[i]>X.e50[i]&&X.adx[i]>20,exit:(X,i)=>X.e20[i]<X.e50[i],stop:2.5,trail:3},
+    entry:(X,i)=>X.e20[i-1]<=X.e50[i-1]&&X.e20[i]>X.e50[i]&&X.adx[i]>20,exit:(X,i)=>X.e20[i]<X.e50[i],stop:2.5,trail:3,bear:(X,i)=>X.e20[i]<X.e50[i]},
   {id:'breakout',name:'شکست سقف (دانچیان)',desc:'ورود: بسته‌شدن بالای سقف ۲۰ کندل قبل، وقتی قیمت بالای SMA100 است. خروج: بسته‌شدن زیر کف ۱۰ کندل قبل.',
-    entry:(X,i)=>X.c[i]>hhv(X.h,20,i-1)&&X.c[i]>X.s100[i],exit:(X,i)=>X.c[i]<llv(X.l,10,i-1),stop:2.5},
+    entry:(X,i)=>X.c[i]>hhv(X.h,20,i-1)&&X.c[i]>X.s100[i],exit:(X,i)=>X.c[i]<llv(X.l,10,i-1),stop:2.5,bear:(X,i)=>X.c[i]<X.s100[i]},
   {id:'macd',name:'مومنتوم MACD',desc:'ورود: MACD از خط سیگنال بالا برود، وقتی قیمت بالای EMA100 است. خروج: MACD زیر خط سیگنال برود.',
-    entry:(X,i)=>X.mh[i-1]<=0&&X.mh[i]>0&&X.c[i]>X.e100[i],exit:(X,i)=>X.mh[i]<0,stop:2},
+    entry:(X,i)=>X.mh[i-1]<=0&&X.mh[i]>0&&X.c[i]>X.e100[i],exit:(X,i)=>X.mh[i]<0,stop:2,bear:(X,i)=>X.mh[i]<0},
   {id:'pullback',name:'پولبک در روند صعودی',desc:'ورود: RSI زیر ۴۰ بیاید وقتی قیمت بالای SMA100 است. خروج: RSI بالای ۶۰ برود یا ۲۰ کندل بگذرد.',
-    entry:(X,i)=>X.c[i]>X.s100[i]&&X.rsi[i]<40,exit:(X,i)=>X.rsi[i]>60,stop:2.5,maxBars:20},
+    entry:(X,i)=>X.c[i]>X.s100[i]&&X.rsi[i]<40,exit:(X,i)=>X.rsi[i]>60,stop:2.5,maxBars:20,bear:(X,i)=>X.c[i]<X.s100[i]},
   {id:'dip',name:'شکار کف',desc:'ورود: سیگنال خرید قوی یا خیلی قوی «شکار کف». خروج: رسیدن به نیمهٔ افت (هدف ۱)، حد ضرر زیر کف، یا ۳۰ کندل.',
-    entry:(X,i)=>X.dipState[i]==='buy'||X.dipState[i]==='buy2',stopAt:(X,i)=>X.dipStop[i],targetAt:(X,i)=>X.dipT1[i],maxBars:30}
+    entry:(X,i)=>X.dipState[i]==='buy'||X.dipState[i]==='buy2',stopAt:(X,i)=>X.dipStop[i],targetAt:(X,i)=>X.dipT1[i],maxBars:30,bear:(X,i)=>X.dipState[i]==='falling'},
+  {id:'super',name:'سوپرترند',desc:'ورود: سوپرترند (ATR 10، ضریب ۳) صعودی شود. خروج: نزولی شود. حد ضرر: خط سوپرترند که با قیمت بالا می‌آید.',
+    entry:(X,i)=>X.std[i-1]===-1&&X.std[i]===1,exit:(X,i)=>X.std[i]===-1,stopAt:(X,i)=>X.stl[i],trailAt:(X,i)=>X.std[i]===1?X.stl[i]:null,bear:(X,i)=>X.std[i]===-1},
+  {id:'ichimoku',name:'ابر ایچیموکو',desc:'ورود: بسته‌شدن بالای ابر، وقتی تنکان بالای کیجون است. خروج: بسته‌شدن زیر کیجون.',
+    entry:(X,i)=>X.ctop[i]!=null&&X.ctop[i-1]!=null&&X.c[i]>X.ctop[i]&&X.c[i-1]<=X.ctop[i-1]&&X.ten[i]>X.kij[i],exit:(X,i)=>X.c[i]<X.kij[i],stop:2.5,bear:(X,i)=>X.cbot[i]!=null&&X.c[i]<X.cbot[i]},
+  {id:'golden',name:'تقاطع طلایی',desc:'ورود: SMA50 از بالای SMA200 رد شود. خروج: SMA50 زیر SMA200 برود (تقاطع مرگ).',
+    entry:(X,i)=>X.s200[i-1]!=null&&X.s50[i-1]<=X.s200[i-1]&&X.s50[i]>X.s200[i],exit:(X,i)=>X.s50[i]<X.s200[i],stop:3,bear:(X,i)=>X.s200[i]!=null&&X.s50[i]<X.s200[i]}
 ];
 // Decision at the close of candle i. Orders are filled at the next candle's open, so the test never peeks into the future.
 function step(X,S,st,i){
-  if(st.pos){const p=st.pos;p.bars++;
+  if(st.pos){const p=st.pos;p.bars++;if(S.trailAt){const tv=S.trailAt(X,i);if(tv!=null)p.stop=Math.max(p.stop,tv)}
     if(S.trail&&X.atr[i]){p.hi=Math.max(p.hi,X.c[i]);p.stop=Math.max(p.stop,p.hi-S.trail*X.atr[i])}
     return (S.exit&&S.exit(X,i))||(S.maxBars&&p.bars>=S.maxBars)?{act:'exit'}:{act:'hold'}}
   if(X.ready[i]&&S.entry(X,i)){const stop=S.stopAt?S.stopAt(X,i):X.c[i]-S.stop*X.atr[i],target=S.targetAt?S.targetAt(X,i):null;
@@ -285,10 +305,19 @@ function study(k){
   const rows=STRATS.map(S=>({S,tr:backtest(X,S,start,split),te:backtest(X,S,split,n-1),full:backtest(X,S,start,n-1,true)}));
   const best=rows.filter(r=>r.tr.n>=3&&r.tr.ret>0&&r.tr.pf>1).sort((a,b)=>b.tr.ret-a.tr.ret)[0]||null;
   const verdict=!best?'none':best.te.n<2?'weak':best.te.ret>0?'ok':'fail';
-  const live=best?best.full.live:null;
-  const rank=verdict==='ok'?{enter:0,exit:1,hold:2,wait:3}[live.act]:verdict==='weak'?5:verdict==='fail'?6:7;
-  return{X,rows,best,verdict,live,rank,start,split,bh:{tr:X.c[split]/X.c[start]-1,te:X.c[n-1]/X.c[split]-1,full:X.c[n-1]/X.c[start]-1}}}
+  const live=best?best.full.live:null,last=n-1;
+  for(const r of rows){const L=r.full.live,cnt=r.full.n+(r.full.open?1:0);
+    r.w=r.tr.ret>0&&r.te.ret>0&&cnt>=3?2:r.full.ret>0&&cnt>=2?1:0;
+    r.vote=L.act==='enter'||L.act==='hold'?1:L.act==='exit'||(r.S.bear&&r.S.bear(X,last))?-1:0;
+    r.state=L.act==='enter'?'سیگنال ورود همین الان':L.act==='hold'?'در معامله از '+fd(X.t[L.pos.ei])+' · حد ضرر '+fmt(L.pos.stop):L.act==='exit'?'سیگنال خروج همین الان':r.vote<0?'شرایط نزولی':'منتظر سیگنال'}
+  let sw=0,ss=0;for(const r of rows){sw+=r.w;ss+=r.w*r.vote}
+  const score=sw?Math.round(100*ss/sw):null,used=rows.filter(r=>r.w>0);
+  const comb=score==null?'none':score>=50?'sbuy':score>=20?'buy':score<=-50?'ssell':score<=-20?'sell':'neutral';
+  const rank=score==null?999:-score;
+  return{X,rows,best,verdict,live,rank,score,comb,used,nb:used.filter(r=>r.vote>0).length,ns:used.filter(r=>r.vote<0).length,nn:used.filter(r=>r.vote===0).length,start,split,bh:{tr:X.c[split]/X.c[start]-1,te:X.c[n-1]/X.c[split]-1,full:X.c[n-1]/X.c[start]-1}}}
 const ACT={enter:['خرید','strong'],hold:['در معامله: نگه‌دار','buy'],exit:['فروش / خروج','sell'],wait:['صبر','wait']};
+const COMB={sbuy:['خرید قوی','strong'],buy:['خرید','buy'],neutral:['خنثی','wait'],sell:['فروش','sell'],ssell:['فروش قوی','sell'],none:['بدون استراتژی معتبر','wait']};
+const VOTE={'1':['خرید','buy'],'0':['خنثی','wait'],'-1':['فروش','sell']};
 const VERD={ok:['معتبر در آزمون','buy'],weak:['معاملهٔ کافی نبود','hold'],fail:['در آزمون شکست خورد','sell'],none:['استراتژی سودده پیدا نشد','wait']};
 /*__CORE_END__*/
 const TFMIN={'15m':15,'1h':60,'4h':240,'1d':1440,'1w':10080}, DAYBARS={'15m':96,'1h':24,'4h':6,'1d':1,'1w':1};
@@ -351,13 +380,13 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 function fd(t){const d=new Date(t),z=x=>String(x).padStart(2,'0');return tf==='1d'||tf==='1w'?d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate():(d.getMonth()+1)+'/'+d.getDate()+' '+z(d.getHours())+':'+z(d.getMinutes())}
 function render(){
   const tb=$('market').tBodies[0];tb.innerHTML='';
-  const order=symbols.slice().sort((x,y)=>{const a=data[x]&&data[x].a,b=data[y]&&data[y].a;return (a&&a.rank!=null?a.rank:9)-(b&&b.rank!=null?b.rank:9)});
+  const order=symbols.slice().sort((x,y)=>{const a=data[x]&&data[x].a,b=data[y]&&data[y].a;return (a&&a.rank!=null?a.rank:9999)-(b&&b.rank!=null?b.rank:9999)});
   for(const s of order){
     const d=data[s]||{},a=d.a,tr=document.createElement('tr');tr.tabIndex=0;if(s===selected)tr.className='sel';
     let cells;
     if(!a)cells='<td colspan="5" class="sub">'+(d.err||'در حال دریافت و آزمون…')+'</td>';
     else if(a.short)cells='<td class="num">'+fmt(d.live)+'</td><td colspan="4" class="sub">تاریخچهٔ این ارز برای آزمون کافی نیست</td>';
-    else cells='<td class="num">'+fmt(d.live)+'</td><td>'+(a.best?a.best.S.name:'—')+'</td><td class="num '+cls(a.best&&a.best.te.ret)+'">'+(a.best?pc(a.best.te.ret):'—')+'</td><td>'+P(VERD[a.verdict])+'</td><td>'+(a.verdict==='ok'?P(ACT[a.live.act]):'—')+'</td>';
+    else cells='<td class="num">'+fmt(d.live)+'</td><td class="num up">'+a.nb+'</td><td class="num down">'+a.ns+'</td><td class="num '+cls(a.score)+'">'+(a.score==null?'—':(a.score>0?'+':'')+a.score)+'</td><td>'+P(COMB[a.comb])+'</td>';
     tr.innerHTML='<td class="sym">'+esc(s)+'</td>'+cells+'<td><button class="x" title="حذف" aria-label="حذف '+esc(s)+'">×</button></td>';
     tr.onclick=e=>{if(e.target.classList.contains('x')){symbols=symbols.filter(x=>x!==s);delete data[s];store.set('cs.symbols',symbols);if(selected===s)selected=symbols[0];render();return}selected=s;store.set('st.sel',s);render()};
     tr.onkeydown=e=>{if(e.key==='Enter'){selected=s;render()}};
@@ -369,32 +398,28 @@ function render(){
 function renderDetail(){
   const d=data[selected],a=d&&d.a;
   $('dSym').textContent=selected?selected+' / USD':'—';
-  const clear=()=>{['stats','cmp','trades'].forEach(id=>{const el=$(id);el.tagName==='DIV'?el.innerHTML='':el.tBodies[0].innerHTML=''})};
+  const clear=()=>{$('stats').innerHTML='';['votes','cmp','trades'].forEach(id=>$(id).tBodies[0].innerHTML='')};
   if(!a){$('dSig').textContent='—';$('dSig').style.color='';$('dWhy').textContent='';$('dPrice').textContent='—';clear();draw();return}
   $('dPrice').textContent=fmt(d.live);
   if(a.short){$('dSig').textContent='داده کافی نیست';$('dSig').style.color='var(--muted)';$('dWhy').textContent='در این تایم‌فریم فقط '+a.bars+' کندل موجود است. تایم‌فریم کوتاه‌تری انتخاب کنید.';clear();draw();return}
-  const b=a.best,L=a.live,S=(label,val,c)=>'<div class="stat"><span>'+label+'</span><b class="num '+(c||'')+'">'+val+'</b></div>';
-  if(a.verdict==='ok'){
-    $('dSig').textContent=L.act==='enter'?'خرید در باز شدن کندل بعد':L.act==='exit'?'فروش / خروج از معامله':L.act==='hold'?'در معامله: نگه‌دار':'صبر، سیگنال ورود نیست';
-    $('dSig').style.color=L.act==='enter'||L.act==='hold'?'var(--buy)':L.act==='exit'?'var(--sell)':'var(--muted)';
-    $('dWhy').textContent='استراتژی: '+b.S.name+' · روی داده‌ای که در انتخاب استفاده نشده بود هم سودده بوده';
-  }else{
-    $('dSig').textContent='سیگنال قابل‌اعتمادی نیست';$('dSig').style.color='var(--muted)';
-    $('dWhy').textContent=a.verdict==='none'?'هیچ‌کدام از ۵ استراتژی در بخش آموزش سودده نبود. برای این ارز در این تایم‌فریم معامله نکنید.':a.verdict==='fail'?'«'+b.S.name+'» در گذشته خوب بود ولی روی دادهٔ آزمون ضرر داد. به آن اعتماد نکنید.':'«'+b.S.name+'» در بخش آزمون کمتر از ۲ معامله داشت و نمی‌شود دربارهٔ آن قضاوت کرد.';
-  }
-  let h='';
-  if(b){
-    const pos=L.pos;
+  const C=COMB[a.comb];$('dSig').textContent=a.comb==='none'?'سیگنال قابل‌اعتمادی نیست':C[0];
+  $('dSig').style.color={sbuy:'var(--buy)',buy:'var(--buy)',sell:'var(--sell)',ssell:'var(--sell)'}[a.comb]||'var(--muted)';
+  $('dWhy').textContent=a.comb==='none'?'هیچ‌کدام از ۸ استراتژی روی گذشتهٔ این ارز سودده نبود. در این تایم‌فریم معامله نکنید.':a.used.length+' استراتژی از ۸ تا معتبر بودند و شمرده شدند: '+a.nb+' خرید، '+a.ns+' فروش، '+a.nn+' خنثی';
+  const S=(label,val,c)=>'<div class="stat"><span>'+label+'</span><b class="num '+(c||'')+'">'+val+'</b></div>';
+  let h=S('امتیاز ترکیبی (−۱۰۰ تا +۱۰۰)',a.score==null?'—':(a.score>0?'+':'')+a.score,cls(a.score));
+  const b=a.best;
+  if(b){const L=b.full.live,pos=L.pos;h+=S('بهترین استراتژی',b.S.name);
     if(L.act==='enter')h+=S('ورود (تقریبی)',fmt(d.live))+S('حد ضرر',fmt(L.stop),'down')+S('هدف',L.target?fmt(L.target):'تا سیگنال خروج','up');
-    else if(pos)h+=S('قیمت ورود',fmt(pos.entry))+S('حد ضرر فعلی',fmt(pos.stop),'down')+S('هدف',pos.target?fmt(pos.target):'تا سیگنال خروج','up')+S('سود/زیان فعلی',pc(d.live/pos.entry-1),cls(d.live/pos.entry-1))+S('زمان ورود',fd(a.X.t[pos.ei]));
-    h+=S('بازدهی در آزمون',pc(b.te.ret),cls(b.te.ret))+S('نگه‌داشتن ساده در همان دوره',pc(a.bh.te),cls(a.bh.te))+S('درصد معاملات سودده',b.full.win==null?'—':Math.round(b.full.win*100)+'%')+S('بیشترین افت سرمایه','−'+(b.full.mdd*100).toFixed(1)+'%','down');
-  }
+    else if(pos)h+=S('قیمت ورود',fmt(pos.entry))+S('حد ضرر فعلی',fmt(pos.stop),'down')+S('سود/زیان فعلی',pc(d.live/pos.entry-1),cls(d.live/pos.entry-1));
+    h+=S('بازدهی آن در آزمون',pc(b.te.ret),cls(b.te.ret))+S('نگه‌داشتن ساده در همان دوره',pc(a.bh.te),cls(a.bh.te))}
   $('stats').innerHTML=h;
+  const W={2:'کامل',1:'نصف',0:'شمرده نمی‌شود'};
+  $('votes').tBodies[0].innerHTML=a.rows.slice().sort((x,y)=>y.w-x.w||y.vote-x.vote).map(r=>'<tr><td><b>'+r.S.name+'</b></td><td>'+P(VOTE[String(r.vote)])+'</td><td style="white-space:normal">'+r.state+'</td><td class="num '+cls(r.te.ret)+'">'+pc(r.te.ret)+'</td><td class="'+(r.w?'':'sub')+'">'+W[r.w]+'</td></tr>').join('');
   $('period').textContent='آموزش: '+fd(a.X.t[a.start])+' تا '+fd(a.X.t[a.split])+' · آزمون: '+fd(a.X.t[a.split])+' تا '+fd(a.X.t[a.X.n-1]);
-  const row=(name,desc,tr,te,full,isBest)=>'<tr'+(isBest?' class="best"':'')+'><td style="white-space:normal;min-width:180px"><b>'+name+'</b>'+(isBest?' <span class="pill strong">برنده</span>':'')+(desc?'<div class="mini">'+desc+'</div>':'')+'</td><td class="num '+cls(tr)+'">'+pc(tr)+'</td><td class="num '+cls(te)+'">'+pc(te)+'</td>'+(full?'<td class="num">'+(full.win==null?'—':Math.round(full.win*100)+'%')+'</td><td class="num">'+full.n+'</td><td class="num">'+(full.pf==null?'—':full.pf>=99?'∞':full.pf.toFixed(2))+'</td><td class="num down">−'+(full.mdd*100).toFixed(1)+'%</td>':'<td>—</td><td>—</td><td>—</td><td>—</td>')+'</tr>';
+  const row=(name,desc,tr,te,full,isBest)=>'<tr'+(isBest?' class="best"':'')+'><td style="white-space:normal;min-width:180px"><b>'+name+'</b>'+(isBest?' <span class="pill strong">بهترین</span>':'')+(desc?'<div class="mini">'+desc+'</div>':'')+'</td><td class="num '+cls(tr)+'">'+pc(tr)+'</td><td class="num '+cls(te)+'">'+pc(te)+'</td>'+(full?'<td class="num">'+(full.win==null?'—':Math.round(full.win*100)+'%')+'</td><td class="num">'+full.n+'</td><td class="num">'+(full.pf==null?'—':full.pf>=99?'∞':full.pf.toFixed(2))+'</td><td class="num down">−'+(full.mdd*100).toFixed(1)+'%</td>':'<td>—</td><td>—</td><td>—</td><td>—</td>')+'</tr>';
   $('cmp').tBodies[0].innerHTML=a.rows.map(r=>row(r.S.name,r.S.desc,r.tr.ret,r.te.ret,r.full,b&&r===b)).join('')+row('خرید و نگه‌داشتن','فقط بخرید و تا آخر دوره نگه دارید؛ معیار مقایسه',a.bh.tr,a.bh.te,null,false);
   const T=b?b.full.trades.slice(-10).reverse():[];
-  $('trades').tBodies[0].innerHTML=b?(b.full.open?'<tr><td class="num">'+fd(a.X.t[b.full.open.ei])+'</td><td class="num">'+fmt(b.full.open.entry)+'</td><td colspan="2" class="sub">هنوز باز است</td><td class="num '+cls(d.live/b.full.open.entry-1)+'">'+pc(d.live/b.full.open.entry-1)+'</td><td></td></tr>':'')+T.map(x=>'<tr><td class="num">'+fd(a.X.t[x.ei])+'</td><td class="num">'+fmt(x.entry)+'</td><td class="num">'+fd(a.X.t[x.xi])+'</td><td class="num">'+fmt(x.exit)+'</td><td class="num '+cls(x.r)+'">'+pc(x.r)+'</td><td>'+x.why+'</td></tr>').join(''):'<tr><td colspan="6" class="sub">استراتژی برنده‌ای نیست</td></tr>';
+  $('trades').tBodies[0].innerHTML=b?(b.full.open?'<tr><td class="num">'+fd(a.X.t[b.full.open.ei])+'</td><td class="num">'+fmt(b.full.open.entry)+'</td><td colspan="2" class="sub">هنوز باز است</td><td class="num '+cls(d.live/b.full.open.entry-1)+'">'+pc(d.live/b.full.open.entry-1)+'</td><td></td></tr>':'')+T.map(x=>'<tr><td class="num">'+fd(a.X.t[x.ei])+'</td><td class="num">'+fmt(x.entry)+'</td><td class="num">'+fd(a.X.t[x.xi])+'</td><td class="num">'+fmt(x.exit)+'</td><td class="num '+cls(x.r)+'">'+pc(x.r)+'</td><td>'+x.why+'</td></tr>').join(''):'<tr><td colspan="6" class="sub">استراتژی معتبری نیست</td></tr>';
   draw();
 }
 function draw(){
